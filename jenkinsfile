@@ -1,0 +1,134 @@
+pipeline {
+    agent any
+
+    triggers {
+        githubPush()
+    }
+
+    environment {
+        DOCKER_IMAGE_NAME = 'scientific_calculator'
+        GITHUB_REPO_URL = 'https://github.com/Kanan30/SPE_MiniProject.git'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                script {
+                    // Checkout the code from the GitHub repository
+                    git branch: 'main', url: "${GITHUB_REPO_URL}"
+                }
+            }
+        }
+
+        stage('Build') {
+            steps {
+                script {
+                    // Build the project using Maven
+                    sh 'mvn clean package'
+                }
+            }
+            post {
+                success {
+                    mail to: 'kanan.gupta@iiitb.ac.in',
+                        subject: "✅ Build SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                        body: """
+                        Build was successful!
+                        Job: ${env.JOB_NAME}
+                        Build Number: ${env.BUILD_NUMBER}
+                        Check logs at: ${env.BUILD_URL}
+                        """
+                }
+                failure {
+                    mail to: 'kanan.gupta@iiitb.ac.in',
+                        subject: "❌ Build FAILURE: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                        body: """
+                        Build failed!
+                        Job: ${env.JOB_NAME}
+                        Build Number: ${env.BUILD_NUMBER}
+                        Error logs: Check console output at ${env.BUILD_URL}
+                        """
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                script {
+                    // Run unit tests using Maven
+                    sh 'mvn test'
+                }
+            }
+            post {
+                success {
+                    mail to: 'kanan.gupta@iiitb.ac.in',
+                        subject: "✅ Test SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                        body: """
+                        All tests passed successfully!
+                        Job: ${env.JOB_NAME}
+                        Build Number: ${env.BUILD_NUMBER}
+                        Check test report at: ${env.BUILD_URL}testReport
+                        """
+                }
+                failure {
+                    mail to: 'kanan.gupta@iiitb.ac.in',
+                        subject: "❌ Test FAILURE: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                        body: """
+                        Some tests failed!
+                        Job: ${env.JOB_NAME}
+                        Build Number: ${env.BUILD_NUMBER}
+                        Check failed test cases at: ${env.BUILD_URL}testReport
+                        """
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // Build Docker image
+                    docker.build("${DOCKER_IMAGE_NAME}", '.')
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    docker.withRegistry('', 'DockerHubCred') {
+                        sh 'docker tag scientific_calculator kanang/scientific_calculator:latest'
+                        sh 'docker push kanang/scientific_calculator'
+                    }
+                }
+            }
+        }
+
+        stage('Run Ansible Playbook') {
+            steps {
+                script {
+                    withEnv(["ANSIBLE_HOST_KEY_CHECKING=False"]) {
+                        ansiblePlaybook(
+                            playbook: 'deploy.yml',
+                            inventory: 'inventory'
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            mail to: 'kanan.gupta@iiitb.ac.in',
+                subject: "✅ Application Deployment SUCCESS: Build ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: "Your Application is deployed successfully!"
+        }
+        failure {
+            mail to: 'kanan.gupta@iiitb.ac.in',
+                subject: "❌ Application Deployment FAILURE: Build ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: "Your Application deployment failed."
+        }
+        always {
+            cleanWs()
+        }
+    }
+}
