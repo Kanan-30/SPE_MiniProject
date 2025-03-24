@@ -47,6 +47,7 @@ public class ScientificCalculator {
                     System.out.print("Enter a number: ");
                     num = scanner.nextDouble();
                     System.out.println("Square root: " + squareRoot(num));
+                    System.out.println("");
                     break;
                 case 2:
                     System.out.print("Enter an integer: ");
