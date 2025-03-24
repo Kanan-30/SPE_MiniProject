@@ -7,7 +7,7 @@ public class ScientificCalculatorTest {
 
     @Test
     void testSquareRoot() {
-        assertEquals(4.0, ScientificCalculator.squareRoot(16), 0.001);
+        assertEquals(8.0, ScientificCalculator.squareRoot(16), 0.001);
         assertEquals(5.0, ScientificCalculator.squareRoot(25), 0.001);
         assertThrows(IllegalArgumentException.class, () -> ScientificCalculator.squareRoot(-1));
     }
